@@ -1,0 +1,35 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Assets — CfA SAM</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#0f1117;color:#e2e8f0}
+nav{background:#1a1f2e;border-bottom:1px solid #2d3748;padding:12px 24px;display:flex;align-items:center;gap:20px}
+nav .brand{font-weight:700;color:#63b3ed;font-size:16px}nav a{color:#a0aec0;text-decoration:none;font-size:14px;padding:6px 12px;border-radius:6px}nav a:hover{background:#2d3748;color:#fff}nav .user-badge{margin-left:auto;background:#2d3748;padding:4px 12px;border-radius:20px;font-size:13px}
+main{max-width:1200px;margin:0 auto;padding:24px}h1{font-size:24px;font-weight:700;margin-bottom:20px}
+table{width:100%;border-collapse:collapse;background:#1a1f2e;border-radius:12px;overflow:hidden;border:1px solid #2d3748}
+th{background:#2d3748;padding:12px 16px;text-align:left;font-size:12px;color:#718096;text-transform:uppercase;letter-spacing:.5px}
+td{padding:12px 16px;font-size:13px;border-bottom:1px solid #2d3748}tr:last-child td{border:none}
+tr:hover{background:#1e2535}
+.badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.badge.current{background:#276749;color:#9ae6b4}.badge.patch_available{background:#2b4280;color:#90cdf4}
+.badge.critical_update{background:#742a2a;color:#fc8181}.badge.eol{background:#4a5568;color:#a0aec0}
+.score{font-weight:700}.score.high{color:#68d391}.score.mid{color:#f6e05e}.score.low{color:#fc8181}
+.btn{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:none}
+.btn.patch-btn{background:#276749;color:#9ae6b4}
+</style></head>
+<body>
+<nav><span class="brand">🔭 CfA SAM</span><a href="/">Dashboard</a><a href="/assets">Assets</a><a href="/vulnerabilities">Vulnerabilities</a><a href="/changes">Changes</a>
+<span class="user-badge"><span>{{user.username}}</span> · {{user.role}}</span><a href="/logout" style="color:#fc8181">Logout</a></nav>
+<main><h1>Software Asset Inventory</h1>
+<table><thead><tr><th>Name</th><th>Vendor</th><th>Version</th><th>Category</th><th>Environment</th><th>Patch Status</th><th>Security Score</th><th>Vulns</th></tr></thead>
+<tbody>
+{% for a in assets %}
+<tr>
+  <td style="font-weight:600">{{a.name}}</td>
+  <td style="color:#a0aec0">{{a.vendor}}</td>
+  <td style="font-family:monospace;font-size:12px">{{a.version}}</td>
+  <td>{{a.category}}</td>
+  <td><span style="font-size:11px;color:#718096">{{a.environment}}</span></td>
+  <td><span class="badge {{a.patch_status}}">{{a.patch_status.replace('_',' ')}}</span></td>
+  <td><span class="score {% if a.security_score >= 80 %}high{% elif a.security_score >= 60 %}mid{% else %}low{% endif %}">{{a.security_score}}/100</span></td>
+  <td style="color:{% if a.vulnerabilities|length > 0 %}#fc8181{% else %}#68d391{% endif %}">{{a.vulnerabilities|length}}</td>
+</tr>
+{% endfor %}
+</tbody></table></main></body></html>

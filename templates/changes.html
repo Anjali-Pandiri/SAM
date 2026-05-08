@@ -1,0 +1,32 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Changes — CfA SAM</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#0f1117;color:#e2e8f0}
+nav{background:#1a1f2e;border-bottom:1px solid #2d3748;padding:12px 24px;display:flex;align-items:center;gap:20px}
+nav .brand{font-weight:700;color:#63b3ed;font-size:16px}nav a{color:#a0aec0;text-decoration:none;font-size:14px;padding:6px 12px;border-radius:6px}nav a:hover{background:#2d3748;color:#fff}nav .user-badge{margin-left:auto;background:#2d3748;padding:4px 12px;border-radius:20px;font-size:13px}
+main{max-width:1200px;margin:0 auto;padding:24px}h1{font-size:24px;font-weight:700;margin-bottom:20px}
+table{width:100%;border-collapse:collapse;background:#1a1f2e;border-radius:12px;overflow:hidden;border:1px solid #2d3748}
+th{background:#2d3748;padding:12px 16px;text-align:left;font-size:12px;color:#718096;text-transform:uppercase;letter-spacing:.5px}
+td{padding:12px 16px;font-size:13px;border-bottom:1px solid #2d3748}tr:last-child td{border:none}tr:hover{background:#1e2535}
+.badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.badge.draft{background:#2d3748;color:#a0aec0}.badge.submitted{background:#2b4280;color:#90cdf4}
+.badge.approved{background:#276749;color:#9ae6b4}.badge.in_progress{background:#744210;color:#fbd38d}
+.badge.completed{background:#22543d;color:#9ae6b4}.badge.rejected{background:#742a2a;color:#fc8181}
+.pri.critical{color:#fc8181;font-weight:700}.pri.high{color:#fbd38d}.pri.normal{color:#a0aec0}.pri.low{color:#718096}
+.tnum{font-family:monospace;font-size:12px;color:#63b3ed}
+</style></head><body>
+<nav><span class="brand">🔭 CfA SAM</span><a href="/">Dashboard</a><a href="/assets">Assets</a><a href="/vulnerabilities">Vulnerabilities</a><a href="/changes">Changes</a>
+<span class="user-badge"><span>{{user.username}}</span> · {{user.role}}</span><a href="/logout" style="color:#fc8181">Logout</a></nav>
+<main><h1>Change Management (ITIL)</h1>
+<table><thead><tr><th>Ticket #</th><th>Title</th><th>Type</th><th>Priority</th><th>Status</th><th>Requester</th><th>Scheduled</th></tr></thead>
+<tbody>
+{% for c in changes %}
+<tr>
+  <td class="tnum">{{c.ticket_number}}</td>
+  <td style="max-width:280px">{{c.title}}</td>
+  <td style="font-size:12px;color:#a0aec0">{{c.change_type}}</td>
+  <td><span class="pri {{c.priority}}">{{c.priority}}</span></td>
+  <td><span class="badge {{c.status}}">{{c.status.replace('_',' ')}}</span></td>
+  <td style="font-size:12px;color:#a0aec0">{{c.requester.username if c.requester else '—'}}</td>
+  <td style="font-size:11px;color:#718096">{{c.scheduled_at.strftime('%Y-%m-%d') if c.scheduled_at else '—'}}</td>
+</tr>
+{% endfor %}
+</tbody></table></main></body></html>

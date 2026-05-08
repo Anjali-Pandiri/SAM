@@ -1,0 +1,201 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# docker-compose.yml  —  Multi-Service Orchestration
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# WHAT IS DOCKER COMPOSE?
+# Docker Compose lets you define and run MULTIPLE containers together
+# as a single application, using one configuration file (this file).
+#
+# WHY MULTIPLE CONTAINERS?
+# Enterprise applications have separate services:
+# - Web application (Flask)
+# - Database (PostgreSQL/MySQL)
+# - Cache (Redis)
+# - Message queue (RabbitMQ)
+# - Monitoring (Prometheus/Grafana)
+#
+# Each runs in its OWN container (best practice: one process per container).
+# Compose wires them together with shared networks and volumes.
+#
+# WHAT IS YAML?
+# YAML = "YAML Ain't Markup Language" — a human-readable config format.
+# Indentation matters (like Python).
+# Key: value pairs, lists start with "-"
+# ═══════════════════════════════════════════════════════════════════════════
+
+version: '3.8'
+# The Compose file format version.
+# 3.8 is the stable, widely-supported version.
+# Must be a string (quoted) in some Docker versions.
+
+
+# ── SERVICES ──────────────────────────────────────────────────────────────────
+services:
+  # "services" lists all the containers Compose will manage.
+  # Each key under services is a service name (you choose the name).
+
+  # ── SERVICE 1: THE FLASK APP ──
+  monitor:
+    # "monitor" is our service name — used for networking and commands
+    # e.g., docker-compose logs monitor  (view logs for just this service)
+    
+    build:
+      context: .
+      # context: . means "build using the Dockerfile in the CURRENT directory"
+      # Docker sends everything in "." as the "build context" to the daemon
+      dockerfile: Dockerfile
+      # Explicitly name the Dockerfile (useful if you have multiple)
+    
+    container_name: cfa_monitor
+    # Give the container a human-readable name instead of a random one.
+    # Without this, Docker generates names like "sysadmin_monitor_1"
+    
+    ports:
+      - "5000:5000"
+      # Map host port 5000 → container port 5000
+      # Format: "host_port:container_port"
+      # After this, http://localhost:5000 on your computer
+      # → reaches port 5000 inside the container
+    
+    volumes:
+      - ./data/db:/app/db
+      # BIND MOUNT: map a host directory to a container directory
+      # ./data/db (on your computer) ↔ /app/db (inside container)
+      #
+      # WHY? So database files PERSIST when the container stops/restarts.
+      # Without volumes, all data is lost when a container is removed.
+      # Volumes are how stateful applications (databases) survive restarts.
+      
+      - ./data/logs:/app/logs
+      # Same for logs — persist them on your host machine for inspection
+      # This lets you view logs with regular text editors, not just docker logs
+    
+    environment:
+      - FLASK_ENV=production
+      # Environment variables passed INTO the container at runtime.
+      # Accessible in Python via: os.environ.get('FLASK_ENV')
+      # 
+      # WHY ENV VARS?
+      # Best practice: keep configuration separate from code.
+      # Secrets (passwords, API keys) should NEVER be in code.
+      # They should be environment variables or mounted secrets.
+      
+      - APP_SECRET_KEY=change-me-in-production
+      # In real production: use Docker Secrets or a secrets manager
+      # This is a demo — never hardcode secrets in real apps!
+    
+    restart: unless-stopped
+    # Restart policy — what to do if the container crashes:
+    # "no"             = never restart (default)
+    # "always"         = always restart, even if stopped manually
+    # "unless-stopped" = restart on crash, but NOT if manually stopped
+    # "on-failure"     = restart only if exit code is non-zero (error)
+    # 
+    # "unless-stopped" is the standard for production services.
+    
+    networks:
+      - cfa_network
+    # Connect this container to the "cfa_network" (defined below).
+    # Containers on the same network can reach each other by service name.
+    # e.g., From inside another container: http://monitor:5000
+    
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+      # Compose-level healthcheck (overrides Dockerfile HEALTHCHECK)
+      # Compose uses this to wait for dependencies to be "healthy"
+    
+    depends_on:
+      - redis
+      # This service starts AFTER "redis" is running.
+      # Prevents our app from trying to connect to Redis before it's ready.
+    
+    logging:
+      driver: "json-file"
+      # Logging driver: how Docker collects and stores container logs.
+      # "json-file" = default, stores logs as JSON files on the host.
+      # Other drivers: syslog, fluentd, awslogs (sends to CloudWatch)
+      
+      options:
+        max-size: "10m"
+        # Limit log file size to 10 megabytes
+        # Without limits, logs can fill up disk space on production servers
+        
+        max-file: "3"
+        # Keep maximum 3 log files (rotating them as they fill up)
+        # Total: 3 × 10MB = 30MB max log storage for this service
+
+
+  # ── SERVICE 2: REDIS CACHE ──
+  redis:
+    # Redis is an in-memory key-value store used for:
+    # - Caching (store computed results temporarily)
+    # - Session storage (remember logged-in users)
+    # - Rate limiting (track API call counts)
+    # - Message queuing
+    #
+    # This simulates the enterprise caching layer a SysAdmin manages.
+    
+    image: redis:7-alpine
+    # Instead of building from a Dockerfile, we use a pre-built image directly.
+    # redis:7 = Redis version 7
+    # alpine  = based on Alpine Linux (even more minimal than slim)
+    #           Alpine images are ~5MB vs ~100MB for standard images
+    
+    container_name: cfa_redis
+    
+    ports:
+      - "6379:6379"
+      # Redis default port is 6379.
+      # Expose it so we can connect from the host for debugging/inspection.
+    
+    volumes:
+      - redis_data:/data
+      # NAMED VOLUME (different from bind mount above)
+      # Docker manages this volume, stored in Docker's own storage area.
+      # Persists Redis data even when container is removed.
+      # "redis_data" must be declared in the "volumes:" section below.
+    
+    command: redis-server --appendonly yes
+    # Override the default Redis command to enable AOF persistence.
+    # appendonly yes = Append Only File mode
+    # Every write is logged to disk → data survives container restarts
+    # Without this, Redis is purely in-memory (lost on restart)
+    
+    networks:
+      - cfa_network
+    
+    restart: unless-stopped
+
+
+# ── NETWORKS ──────────────────────────────────────────────────────────────────
+networks:
+  cfa_network:
+    # Define a custom network for our services.
+    
+    driver: bridge
+    # "bridge" is the default Docker network driver.
+    # Creates an isolated virtual network between containers.
+    # 
+    # Network isolation means:
+    # - Containers on cfa_network can talk to each other
+    # - Other Docker networks can't access cfa_network services
+    # - This is a SECURITY FEATURE — network segmentation
+    #
+    # In enterprise: you'd use overlay networks for multi-host deployments
+    # or macvlan to give containers their own MAC addresses.
+
+
+# ── VOLUMES ───────────────────────────────────────────────────────────────────
+volumes:
+  redis_data:
+    # Declare the named volume used by the Redis service.
+    # Docker creates and manages this volume automatically.
+    # Location on Linux: /var/lib/docker/volumes/redis_data/
+    # 
+    # Named volumes vs bind mounts:
+    # Named volumes: Docker manages location, portable, easier backups
+    # Bind mounts:   You control the host path, easier to inspect files
